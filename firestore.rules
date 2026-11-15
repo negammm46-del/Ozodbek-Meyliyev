@@ -1,0 +1,511 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ================= GLOBAL HELPERS =================
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isVerifiedAdminEmail() {
+      return isSignedIn() &&
+        request.auth.token.email_verified == true &&
+        request.auth.token.email == 'negammm46@gmail.com';
+    }
+
+    function isAdmin() {
+      return isVerifiedAdminEmail() ||
+        (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isValidTimestamp(val) {
+      return val is timestamp && val == request.time;
+    }
+
+    // ================= VALIDATION BLUEPRINTS =================
+
+    function isValidUserSettings(settings) {
+      return settings is map &&
+        settings.keys().hasOnly(['theme', 'soundEnabled', 'aiVoiceUri', 'aiSpeechRate']) &&
+        (!('theme' in settings) || (settings.theme is string && settings.theme.size() <= 16)) &&
+        (!('soundEnabled' in settings) || settings.soundEnabled is bool) &&
+        (!('aiVoiceUri' in settings) || (settings.aiVoiceUri is string && settings.aiVoiceUri.size() <= 300)) &&
+        (!('aiSpeechRate' in settings) || (settings.aiSpeechRate is number && settings.aiSpeechRate >= 0.5 && settings.aiSpeechRate <= 2.0));
+    }
+
+    function isValidStringList(arr, maxLen, itemMaxSize) {
+      return arr is list &&
+        arr.size() <= maxLen &&
+        (arr.size() == 0 || (arr[0] is string && arr[0].size() <= itemMaxSize));
+    }
+
+    function isValidUserProfileShape(data) {
+      return data.keys().hasAll([
+          'uid', 'displayName', 'email', 'photoURL', 'createdAt', 'lastLoginAt',
+          'country', 'language', 'level', 'englishLevel', 'learningFocus',
+          'dailyGoalMin', 'favoriteContinent', 'onboardingDone',
+          'xp', 'coins', 'streak', 'totalLessonsCompleted', 'totalGamesPlayed',
+          'totalCorrectAnswers', 'favorites', 'proStatus', 'subscriptionPlan',
+          'achievements', 'settings', 'role'
+        ]) &&
+        data.keys().hasOnly([
+          'uid', 'displayName', 'email', 'photoURL', 'createdAt', 'lastLoginAt',
+          'country', 'language', 'level', 'englishLevel', 'learningFocus',
+          'dailyGoalMin', 'favoriteContinent', 'onboardingDone',
+          'xp', 'coins', 'streak', 'totalLessonsCompleted', 'totalGamesPlayed',
+          'totalCorrectAnswers', 'favorites', 'proStatus', 'subscriptionPlan',
+          'achievements', 'settings', 'role'
+        ]) &&
+        isValidId(data.uid) &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+        data.email is string && data.email.size() <= 180 &&
+        data.photoURL is string && data.photoURL.size() <= 1000 &&
+        data.createdAt is timestamp &&
+        data.lastLoginAt is timestamp &&
+        data.country is string && data.country.size() >= 2 && data.country.size() <= 64 &&
+        data.language is string && data.language.size() >= 2 && data.language.size() <= 16 &&
+        data.level is string && data.level.size() >= 1 && data.level.size() <= 40 &&
+        data.englishLevel in ['A1', 'A2', 'B1', 'B2', 'C1'] &&
+        data.learningFocus is string && data.learningFocus.size() <= 40 &&
+        data.dailyGoalMin is int && data.dailyGoalMin >= 5 && data.dailyGoalMin <= 180 &&
+        data.favoriteContinent is string && data.favoriteContinent.size() <= 40 &&
+        data.onboardingDone is bool &&
+        data.xp is int && data.xp >= 0 && data.xp <= 10000000 &&
+        data.coins is int && data.coins >= 0 && data.coins <= 1000000 &&
+        data.streak is int && data.streak >= 0 && data.streak <= 10000 &&
+        data.totalLessonsCompleted is int && data.totalLessonsCompleted >= 0 && data.totalLessonsCompleted <= 10000 &&
+        data.totalGamesPlayed is int && data.totalGamesPlayed >= 0 && data.totalGamesPlayed <= 100000 &&
+        data.totalCorrectAnswers is int && data.totalCorrectAnswers >= 0 && data.totalCorrectAnswers <= 500000 &&
+        isValidStringList(data.favorites, 250, 80) &&
+        data.proStatus is bool &&
+        data.subscriptionPlan in ['free', 'monthly', 'yearly', 'lifetime'] &&
+        isValidStringList(data.achievements, 60, 80) &&
+        isValidUserSettings(data.settings) &&
+        data.role in ['student', 'admin'];
+    }
+
+    function isValidGameResult(data, uid) {
+      return data.keys().hasAll([
+          'uid', 'gameId', 'title', 'score', 'accuracy',
+          'duration', 'difficulty', 'completedAt', 'xpEarned'
+        ]) &&
+        data.keys().hasOnly([
+          'uid', 'gameId', 'title', 'score', 'accuracy',
+          'duration', 'difficulty', 'completedAt', 'xpEarned'
+        ]) &&
+        isValidId(data.uid) && data.uid == uid &&
+        isValidId(data.gameId) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+        data.score is int && data.score >= 0 && data.score <= 100000 &&
+        data.accuracy is number && data.accuracy >= 0 && data.accuracy <= 100 &&
+        data.duration is int && data.duration >= 0 && data.duration <= 7200 &&
+        data.difficulty in ['easy', 'medium', 'hard'] &&
+        data.xpEarned is int && data.xpEarned >= 0 && data.xpEarned <= 250 &&
+        data.completedAt is timestamp;
+    }
+
+    function isValidLearningProgress(data, uid) {
+      return data.keys().hasAll([
+          'uid', 'currentStage', 'completedCountries', 'completedTerritories',
+          'masteredFlashcards', 'exploredCountries', 'quizScores',
+          'englishVocabProgress', 'englishSpeakingProgress',
+          'expertCertified', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid', 'currentStage', 'completedCountries', 'completedTerritories',
+          'masteredFlashcards', 'exploredCountries', 'quizScores',
+          'englishVocabProgress', 'englishSpeakingProgress',
+          'expertCertified', 'updatedAt'
+        ]) &&
+        isValidId(data.uid) && data.uid == uid &&
+        data.currentStage is int && data.currentStage >= 1 && data.currentStage <= 5 &&
+        isValidStringList(data.completedCountries, 250, 16) &&
+        isValidStringList(data.completedTerritories, 60, 64) &&
+        isValidStringList(data.masteredFlashcards, 300, 80) &&
+        isValidStringList(data.exploredCountries, 250, 80) &&
+        data.quizScores is map && data.quizScores.keys().size() <= 100 &&
+        data.englishVocabProgress is int && data.englishVocabProgress >= 0 && data.englishVocabProgress <= 10000 &&
+        data.englishSpeakingProgress is int && data.englishSpeakingProgress >= 0 && data.englishSpeakingProgress <= 10000 &&
+        data.expertCertified is bool &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAchievement(data, uid) {
+      return data.keys().hasAll(['uid', 'achievementId', 'title', 'xpReward', 'unlockedAt']) &&
+        data.keys().hasOnly(['uid', 'achievementId', 'title', 'xpReward', 'unlockedAt']) &&
+        isValidId(data.uid) && data.uid == uid &&
+        isValidId(data.achievementId) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+        data.xpReward is int && data.xpReward >= 0 && data.xpReward <= 200 &&
+        data.unlockedAt is timestamp;
+    }
+
+    function isValidFavorite(data, uid) {
+      return data.keys().hasAll(['uid', 'countryId', 'name', 'code', 'savedAt']) &&
+        data.keys().hasOnly(['uid', 'countryId', 'name', 'code', 'savedAt']) &&
+        isValidId(data.uid) && data.uid == uid &&
+        isValidId(data.countryId) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+        data.code is string && data.code.size() >= 2 && data.code.size() <= 8 &&
+        data.savedAt is timestamp;
+    }
+
+    function isValidDailyChallenge(data, uid, dateId) {
+      return data.keys().hasAll(['uid', 'dateId', 'completed', 'xpEarned', 'completedAt']) &&
+        data.keys().hasOnly(['uid', 'dateId', 'completed', 'xpEarned', 'completedAt']) &&
+        isValidId(data.uid) && data.uid == uid &&
+        isValidId(data.dateId) && data.dateId == dateId &&
+        data.completed is bool &&
+        data.xpEarned is int && data.xpEarned >= 0 && data.xpEarned <= 100 &&
+        data.completedAt is timestamp;
+    }
+
+    function isValidMediaUpload(data, uid) {
+      return data.keys().hasAll(['uid', 'fileName', 'storagePath', 'downloadUrl', 'category', 'title', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'fileName', 'storagePath', 'downloadUrl', 'category', 'title', 'createdAt']) &&
+        isValidId(data.uid) && data.uid == uid &&
+        data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 180 &&
+        data.storagePath is string && data.storagePath.size() >= 1 && data.storagePath.size() <= 300 &&
+        data.downloadUrl is string && data.downloadUrl.size() >= 1 && data.downloadUrl.size() <= 1000 &&
+        data.category in ['avatar', 'learning', 'admin-lesson'] &&
+        data.title is string && data.title.size() <= 160 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidSubscriptionRecord(data, uid) {
+      return data.keys().hasAll([
+          'uid', 'subscriptionStatus', 'subscriptionPlan', 'paymentProvider',
+          'entitlementStatus', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid', 'subscriptionStatus', 'subscriptionType', 'subscriptionPlan',
+          'subscriptionStartDate', 'subscriptionEndDate', 'proStatus',
+          'lifetimePro', 'promoCode', 'paymentProvider', 'entitlementStatus',
+          'updatedAt'
+        ]) &&
+        isValidId(data.uid) && data.uid == uid &&
+        data.subscriptionStatus in ['inactive', 'active', 'past_due', 'canceled', 'expired'] &&
+        (!('subscriptionType' in data) || data.subscriptionType in ['free', 'paid', 'promo', 'lifetime']) &&
+        data.subscriptionPlan in ['free', 'monthly', 'yearly', 'lifetime'] &&
+        (!('subscriptionStartDate' in data) || data.subscriptionStartDate == null || (data.subscriptionStartDate is string && data.subscriptionStartDate.size() <= 64)) &&
+        (!('subscriptionEndDate' in data) || data.subscriptionEndDate == null || (data.subscriptionEndDate is string && data.subscriptionEndDate.size() <= 64)) &&
+        (!('proStatus' in data) || data.proStatus in ['inactive', 'active', 'expired']) &&
+        (!('lifetimePro' in data) || data.lifetimePro is bool) &&
+        (!('promoCode' in data) || (data.promoCode is string && data.promoCode.size() <= 32)) &&
+        data.paymentProvider in ['none', 'stripe', 'admin_grant', 'promo_code'] &&
+        data.entitlementStatus in ['free', 'pro'] &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPromoRedemption(data, redemptionId) {
+      return data.keys().hasAll([
+          'redemptionId', 'uid', 'code', 'discountPercent', 'finalPrice',
+          'subscriptionType', 'subscriptionPlan', 'subscriptionStart',
+          'subscriptionEnd', 'proStatus', 'lifetimePro', 'redeemedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'redemptionId', 'uid', 'code', 'discountPercent', 'finalPrice',
+          'subscriptionType', 'subscriptionPlan', 'subscriptionStart',
+          'subscriptionEnd', 'proStatus', 'lifetimePro', 'redeemedAt'
+        ]) &&
+        isValidId(data.redemptionId) && data.redemptionId == redemptionId &&
+        isValidId(data.uid) &&
+        data.code in ['FREE100', 'OZODBRO'] &&
+        data.discountPercent == 100 &&
+        data.finalPrice == 0 &&
+        data.subscriptionType in ['promo', 'lifetime'] &&
+        data.subscriptionPlan in ['monthly', 'lifetime'] &&
+        data.subscriptionStart is timestamp &&
+        (data.subscriptionEnd == null || data.subscriptionEnd is timestamp) &&
+        data.proStatus in ['active', 'expired'] &&
+        data.lifetimePro is bool &&
+        data.redeemedAt is timestamp;
+    }
+
+    function isValidLeaderboardEntry(data, uid) {
+      return data.keys().hasAll(['uid', 'displayName', 'photoURL', 'country', 'xp', 'streak', 'totalGamesPlayed', 'isPro', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'displayName', 'photoURL', 'country', 'xp', 'streak', 'totalGamesPlayed', 'isPro', 'updatedAt']) &&
+        isValidId(data.uid) && data.uid == uid &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+        data.photoURL is string && data.photoURL.size() <= 1000 &&
+        data.country is string && data.country.size() >= 2 && data.country.size() <= 64 &&
+        data.xp is int && data.xp >= 0 && data.xp <= 10000000 &&
+        data.streak is int && data.streak >= 0 && data.streak <= 10000 &&
+        data.totalGamesPlayed is int && data.totalGamesPlayed >= 0 && data.totalGamesPlayed <= 100000 &&
+        data.isPro is bool &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPublicCountry(data) {
+      return data.keys().hasAll(['id', 'nameUz', 'capitalUz', 'continent', 'summaryUz', 'imageUrl', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'nameUz', 'capitalUz', 'continent', 'summaryUz', 'imageUrl', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.nameUz is string && data.nameUz.size() >= 1 && data.nameUz.size() <= 120 &&
+        data.capitalUz is string && data.capitalUz.size() >= 1 && data.capitalUz.size() <= 120 &&
+        data.continent is string && data.continent.size() >= 1 && data.continent.size() <= 60 &&
+        data.summaryUz is string && data.summaryUz.size() <= 2000 &&
+        data.imageUrl is string && data.imageUrl.size() <= 1000 &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAdminQuiz(data) {
+      return data.keys().hasAll(['id', 'title', 'category', 'difficulty', 'question', 'options', 'correctIndex', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'title', 'category', 'difficulty', 'question', 'options', 'correctIndex', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+        data.difficulty in ['easy', 'medium', 'hard'] &&
+        data.question is string && data.question.size() >= 1 && data.question.size() <= 400 &&
+        isValidStringList(data.options, 6, 160) &&
+        data.options.size() >= 2 &&
+        data.correctIndex is int && data.correctIndex >= 0 && data.correctIndex < data.options.size() &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidGameConfig(data) {
+      return data.keys().hasAll(['gameId', 'enabled', 'featured', 'xpMultiplier', 'updatedAt']) &&
+        data.keys().hasOnly(['gameId', 'enabled', 'featured', 'xpMultiplier', 'updatedAt']) &&
+        isValidId(data.gameId) &&
+        data.enabled is bool &&
+        data.featured is bool &&
+        data.xpMultiplier is number && data.xpMultiplier >= 0.5 && data.xpMultiplier <= 5.0 &&
+        data.updatedAt is timestamp;
+    }
+
+    // ================= COLLECTION RULES =================
+
+    // Boot connectivity check
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // Admin role markers
+    match /admins/{uid} {
+      allow get: if isValidId(uid) && (isOwner(uid) || isAdmin());
+      allow list: if isVerifiedAdminEmail();
+      allow create, update, delete: if isValidId(uid) && isAdmin();
+    }
+
+    // Private User Profiles
+    match /users/{uid} {
+      allow get: if isValidId(uid) && (isOwner(uid) || isAdmin());
+      allow list: if isVerifiedAdminEmail();
+
+      allow create: if isValidId(uid) && isOwner(uid) &&
+        isValidUserProfileShape(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        incoming().role == 'student' &&
+        incoming().proStatus == false &&
+        incoming().subscriptionPlan == 'free' &&
+        incoming().xp <= 100 &&
+        incoming().coins <= 50 &&
+        isValidTimestamp(incoming().createdAt) &&
+        isValidTimestamp(incoming().lastLoginAt);
+
+      allow update: if isValidId(uid) && isValidUserProfileShape(incoming()) && (
+        isAdmin() ||
+        (
+          isOwner(uid) &&
+          incoming().uid == existing().uid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().role == existing().role &&
+          incoming().proStatus == existing().proStatus &&
+          incoming().subscriptionPlan == existing().subscriptionPlan &&
+          incoming().xp >= existing().xp &&
+          incoming().xp <= existing().xp + 250 &&
+          incoming().coins >= existing().coins &&
+          incoming().coins <= existing().coins + 100 &&
+          (!incoming().diff(existing()).affectedKeys().hasAny(['lastLoginAt']) || isValidTimestamp(incoming().lastLoginAt)) &&
+          (
+            // Action: Login / Profile & Settings update
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName', 'photoURL', 'lastLoginAt', 'country', 'language',
+              'level', 'englishLevel', 'learningFocus', 'dailyGoalMin',
+              'favoriteContinent', 'onboardingDone', 'settings', 'favorites'
+            ]) ||
+            // Action: Bounded Learning / Game Reward update
+            (
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'xp', 'coins', 'streak', 'totalLessonsCompleted',
+                'totalGamesPlayed', 'totalCorrectAnswers', 'achievements',
+                'favorites', 'lastLoginAt'
+              ]) &&
+              isValidTimestamp(incoming().lastLoginAt)
+            )
+          )
+        )
+      );
+
+      allow delete: if isValidId(uid) && isAdmin();
+
+      // Game Results subcollection
+      match /gameResults/{resultId} {
+        allow get: if isValidId(uid) && isValidId(resultId) && (isOwner(uid) || isAdmin());
+        allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+        allow create: if isValidId(uid) && isValidId(resultId) && isOwner(uid) &&
+          isValidGameResult(incoming(), uid) &&
+          isValidTimestamp(incoming().completedAt);
+        allow update, delete: if isValidId(uid) && isValidId(resultId) && isAdmin();
+      }
+
+      // Learning Progress subcollection
+      match /learningProgress/{progressId} {
+        allow get: if isValidId(uid) && isValidId(progressId) && (isOwner(uid) || isAdmin());
+        allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+        allow create, update: if isValidId(uid) && isValidId(progressId) &&
+          (isOwner(uid) || isAdmin()) &&
+          isValidLearningProgress(incoming(), uid) &&
+          isValidTimestamp(incoming().updatedAt);
+        allow delete: if isValidId(uid) && isValidId(progressId) && isAdmin();
+      }
+
+      // Achievements subcollection
+      match /achievements/{achievementId} {
+        allow get: if isValidId(uid) && isValidId(achievementId) && (isOwner(uid) || isAdmin());
+        allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+        allow create: if isValidId(uid) && isValidId(achievementId) && isOwner(uid) &&
+          isValidAchievement(incoming(), uid) &&
+          isValidTimestamp(incoming().unlockedAt);
+        allow update, delete: if isValidId(uid) && isValidId(achievementId) && isAdmin();
+      }
+
+      // Favorites subcollection
+      match /favorites/{countryId} {
+        allow get: if isValidId(uid) && isValidId(countryId) && (isOwner(uid) || isAdmin());
+        allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+        allow create: if isValidId(uid) && isValidId(countryId) && isOwner(uid) &&
+          isValidFavorite(incoming(), uid) &&
+          isValidTimestamp(incoming().savedAt);
+        allow delete: if isValidId(uid) && isValidId(countryId) && (isOwner(uid) || isAdmin());
+        allow update: if false;
+      }
+
+      // Daily Challenges subcollection
+      match /dailyChallenges/{dateId} {
+        allow get: if isValidId(uid) && isValidId(dateId) && (isOwner(uid) || isAdmin());
+        allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+        allow create: if isValidId(uid) && isValidId(dateId) && isOwner(uid) &&
+          isValidDailyChallenge(incoming(), uid, dateId) &&
+          isValidTimestamp(incoming().completedAt);
+        allow update, delete: if isValidId(uid) && isValidId(dateId) && isAdmin();
+      }
+
+      // Media Uploads subcollection
+      match /mediaUploads/{uploadId} {
+        allow get: if isValidId(uid) && isValidId(uploadId) && (isOwner(uid) || isAdmin());
+        allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+        allow create: if isValidId(uid) && isValidId(uploadId) && isOwner(uid) &&
+          isValidMediaUpload(incoming(), uid) &&
+          isValidTimestamp(incoming().createdAt);
+        allow delete: if isValidId(uid) && isValidId(uploadId) && (isOwner(uid) || isAdmin());
+        allow update: if false;
+      }
+    }
+
+    // PRO Subscriptions (Trusted Backend / Cloud Functions / Admin only for writes)
+    match /subscriptions/{uid} {
+      allow get: if isValidId(uid) && (isOwner(uid) || isAdmin());
+      allow list: if isVerifiedAdminEmail();
+      allow create, update: if isValidId(uid) && isAdmin() &&
+        isValidSubscriptionRecord(incoming(), uid) &&
+        isValidTimestamp(incoming().updatedAt);
+      allow delete: if isValidId(uid) && isAdmin();
+    }
+
+    // Promo Code Redemptions (Trusted Backend / Cloud Functions / Admin only for writes)
+    match /promoRedemptions/{redemptionId} {
+      allow get: if isValidId(redemptionId) && (isAdmin() || (isSignedIn() && resource != null && existing().uid == request.auth.uid));
+      allow list: if isVerifiedAdminEmail() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow create, update: if isValidId(redemptionId) && isAdmin() &&
+        isValidPromoRedemption(incoming(), redemptionId) &&
+        isValidTimestamp(incoming().redeemedAt);
+      allow delete: if isValidId(redemptionId) && isAdmin();
+    }
+
+    // Public PII-free Leaderboard
+    match /leaderboard/{uid} {
+      allow get, list: if true;
+      allow create: if isValidId(uid) && isOwner(uid) &&
+        isValidLeaderboardEntry(incoming(), uid) &&
+        incoming().isPro == false &&
+        incoming().xp <= 100 &&
+        isValidTimestamp(incoming().updatedAt);
+      allow update: if isValidId(uid) && isValidLeaderboardEntry(incoming(), uid) && (
+        isAdmin() ||
+        (
+          isOwner(uid) &&
+          incoming().uid == existing().uid &&
+          incoming().isPro == existing().isPro &&
+          incoming().xp >= existing().xp &&
+          incoming().xp <= existing().xp + 250 &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'displayName', 'photoURL', 'country', 'xp', 'streak', 'totalGamesPlayed', 'updatedAt'
+          ]) &&
+          isValidTimestamp(incoming().updatedAt)
+        )
+      );
+      allow delete: if isValidId(uid) && isAdmin();
+    }
+
+    // Public Educational Country Lessons (Admin writes, everyone reads)
+    match /publicCountries/{countryId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(countryId) && isAdmin() &&
+        isValidPublicCountry(incoming()) &&
+        isValidTimestamp(incoming().updatedAt);
+      allow delete: if isValidId(countryId) && isAdmin();
+    }
+
+    // Admin-managed Quizzes (Admin writes, everyone reads)
+    match /quizzes/{quizId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(quizId) && isAdmin() &&
+        isValidAdminQuiz(incoming()) &&
+        isValidTimestamp(incoming().updatedAt);
+      allow delete: if isValidId(quizId) && isAdmin();
+    }
+
+    // Admin-managed Games Config
+    match /gamesConfig/{gameId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(gameId) && isAdmin() &&
+        isValidGameConfig(incoming()) &&
+        isValidTimestamp(incoming().updatedAt);
+      allow delete: if isValidId(gameId) && isAdmin();
+    }
+
+    // Platform Activity Logs
+    match /activityLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isVerifiedAdminEmail();
+      allow create: if isValidId(logId) && isSignedIn() &&
+        incoming().keys().hasAll(['uid', 'action', 'detail', 'createdAt']) &&
+        incoming().keys().hasOnly(['uid', 'action', 'detail', 'createdAt']) &&
+        incoming().uid == request.auth.uid &&
+        incoming().action is string && incoming().action.size() >= 1 && incoming().action.size() <= 100 &&
+        incoming().detail is string && incoming().detail.size() <= 300 &&
+        isValidTimestamp(incoming().createdAt);
+      allow update, delete: if false;
+    }
+  }
+}

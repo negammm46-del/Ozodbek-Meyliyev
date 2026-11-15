@@ -1,0 +1,16 @@
+{
+  "firestore": {
+    "database": "ai-studio-dunyogeografiyas-b3df44ca-64f3-4c2d-9f7f-8d0c85277f7d",
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log"]
+    }
+  ]
+}

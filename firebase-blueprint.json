@@ -1,0 +1,326 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private authenticated user profile with GeoWorld learning preferences, XP, streak, and read-only entitlement mirror.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "email": { "type": "string", "format": "email", "maxLength": 180 },
+        "photoURL": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLoginAt": { "type": "string", "format": "date-time" },
+        "country": { "type": "string", "minLength": 2, "maxLength": 64 },
+        "language": { "type": "string", "maxLength": 16 },
+        "level": { "type": "string", "maxLength": 40 },
+        "englishLevel": { "type": "string", "enum": ["A1", "A2", "B1", "B2", "C1"] },
+        "learningFocus": { "type": "string", "maxLength": 40 },
+        "dailyGoalMin": { "type": "integer" },
+        "favoriteContinent": { "type": "string", "maxLength": 40 },
+        "onboardingDone": { "type": "boolean" },
+        "xp": { "type": "integer" },
+        "coins": { "type": "integer" },
+        "streak": { "type": "integer" },
+        "totalLessonsCompleted": { "type": "integer" },
+        "totalGamesPlayed": { "type": "integer" },
+        "totalCorrectAnswers": { "type": "integer" },
+        "favorites": { "type": "array" },
+        "proStatus": { "type": "boolean" },
+        "subscriptionPlan": { "type": "string", "enum": ["free", "monthly", "yearly", "lifetime"] },
+        "achievements": { "type": "array" },
+        "settings": { "type": "object" },
+        "role": { "type": "string", "enum": ["student", "admin"] }
+      },
+      "required": ["uid", "displayName", "email", "createdAt", "lastLoginAt", "xp", "coins", "streak", "proStatus", "role"]
+    },
+    "GameResult": {
+      "title": "GameResult",
+      "description": "Completed GeoWorld game session result.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "gameId": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "score": { "type": "integer" },
+        "accuracy": { "type": "number" },
+        "duration": { "type": "integer" },
+        "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "xpEarned": { "type": "integer" }
+      },
+      "required": ["uid", "gameId", "score", "accuracy", "duration", "difficulty", "completedAt", "xpEarned"]
+    },
+    "LearningProgress": {
+      "title": "LearningProgress",
+      "description": "Detailed user academy, English, quiz, and flashcard learning progress.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "currentStage": { "type": "integer" },
+        "completedCountries": { "type": "array" },
+        "completedTerritories": { "type": "array" },
+        "masteredFlashcards": { "type": "array" },
+        "exploredCountries": { "type": "array" },
+        "quizScores": { "type": "object" },
+        "englishVocabProgress": { "type": "integer" },
+        "englishSpeakingProgress": { "type": "integer" },
+        "expertCertified": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "currentStage", "updatedAt"]
+    },
+    "UserAchievement": {
+      "title": "UserAchievement",
+      "description": "Unlocked user achievement badge.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "achievementId": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "xpReward": { "type": "integer" },
+        "unlockedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "achievementId", "title", "unlockedAt"]
+    },
+    "UserFavorite": {
+      "title": "UserFavorite",
+      "description": "Saved favorite country entry.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "countryId": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "code": { "type": "string", "minLength": 2, "maxLength": 8 },
+        "savedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "countryId", "name", "savedAt"]
+    },
+    "DailyChallengeRecord": {
+      "title": "DailyChallengeRecord",
+      "description": "Daily challenge completion record keyed by YYYY-MM-DD.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "dateId": { "type": "string", "minLength": 8, "maxLength": 20, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "completed": { "type": "boolean" },
+        "xpEarned": { "type": "integer" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "dateId", "completed", "xpEarned", "completedAt"]
+    },
+    "MediaUpload": {
+      "title": "MediaUpload",
+      "description": "Metadata for user-uploaded images stored in Firebase Storage.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fileName": { "type": "string", "minLength": 1, "maxLength": 180 },
+        "storagePath": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "downloadUrl": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "category": { "type": "string", "enum": ["avatar", "learning", "admin-lesson"] },
+        "title": { "type": "string", "maxLength": 160 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fileName", "storagePath", "downloadUrl", "category", "createdAt"]
+    },
+    "SubscriptionRecord": {
+      "title": "SubscriptionRecord",
+      "description": "Trusted backend-managed PRO subscription entitlement record including promo and lifetime PRO plans.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "subscriptionStatus": { "type": "string", "enum": ["inactive", "active", "past_due", "canceled", "expired"] },
+        "subscriptionType": { "type": "string", "enum": ["free", "paid", "promo", "lifetime"] },
+        "subscriptionPlan": { "type": "string", "enum": ["free", "monthly", "yearly", "lifetime"] },
+        "subscriptionStartDate": { "type": "string", "maxLength": 64 },
+        "subscriptionEndDate": { "type": "string", "maxLength": 64 },
+        "proStatus": { "type": "string", "enum": ["inactive", "active", "expired"] },
+        "lifetimePro": { "type": "boolean" },
+        "promoCode": { "type": "string", "maxLength": 32 },
+        "paymentProvider": { "type": "string", "enum": ["none", "stripe", "admin_grant", "promo_code"] },
+        "entitlementStatus": { "type": "string", "enum": ["free", "pro"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "subscriptionStatus", "subscriptionPlan", "paymentProvider", "entitlementStatus", "updatedAt"]
+    },
+    "PromoRedemption": {
+      "title": "PromoRedemption",
+      "description": "Server-validated promo code redemption record (FREE100 and OZODBRO).",
+      "type": "object",
+      "properties": {
+        "redemptionId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "code": { "type": "string", "enum": ["FREE100", "OZODBRO"] },
+        "discountPercent": { "type": "integer" },
+        "finalPrice": { "type": "number" },
+        "subscriptionType": { "type": "string", "enum": ["promo", "lifetime"] },
+        "subscriptionPlan": { "type": "string", "enum": ["monthly", "lifetime"] },
+        "subscriptionStart": { "type": "string", "format": "date-time" },
+        "subscriptionEnd": { "type": "string", "format": "date-time" },
+        "proStatus": { "type": "string", "enum": ["active", "expired"] },
+        "lifetimePro": { "type": "boolean" },
+        "redeemedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["redemptionId", "uid", "code", "discountPercent", "finalPrice", "subscriptionType", "subscriptionPlan", "subscriptionStart", "proStatus", "lifetimePro", "redeemedAt"]
+    },
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Public PII-free leaderboard entry.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "photoURL": { "type": "string", "maxLength": 1000 },
+        "country": { "type": "string", "minLength": 2, "maxLength": 64 },
+        "xp": { "type": "integer" },
+        "streak": { "type": "integer" },
+        "totalGamesPlayed": { "type": "integer" },
+        "isPro": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "country", "xp", "streak", "updatedAt"]
+    },
+    "PublicCountryLesson": {
+      "title": "PublicCountryLesson",
+      "description": "Public educational country lesson managed by admins.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "nameUz": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "capitalUz": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "continent": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "summaryUz": { "type": "string", "maxLength": 2000 },
+        "imageUrl": { "type": "string", "maxLength": 1000 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "nameUz", "capitalUz", "continent", "updatedAt"]
+    },
+    "AdminQuiz": {
+      "title": "AdminQuiz",
+      "description": "Public geography quiz created from the Admin Dashboard.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "category": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+        "question": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "options": { "type": "array" },
+        "correctIndex": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "category", "difficulty", "question", "options", "correctIndex", "updatedAt"]
+    },
+    "GameConfig": {
+      "title": "GameConfig",
+      "description": "Admin-managed game metadata and availability toggle.",
+      "type": "object",
+      "properties": {
+        "gameId": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "enabled": { "type": "boolean" },
+        "featured": { "type": "boolean" },
+        "xpMultiplier": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["gameId", "enabled", "updatedAt"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Platform activity audit entry.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "action": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "detail": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "action", "createdAt"]
+    },
+    "AdminMarker": {
+      "title": "AdminMarker",
+      "description": "Trusted admin role assignment document keyed by uid.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "grantedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "grantedAt"]
+    },
+    "ConnectionCheck": {
+      "title": "ConnectionCheck",
+      "description": "Health check document for Firestore boot validation.",
+      "type": "object",
+      "properties": {
+        "ok": { "type": "boolean" }
+      },
+      "required": ["ok"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profiles isolated to the owner and verified admins."
+    },
+    "/users/{uid}/gameResults/{resultId}": {
+      "schema": { "$ref": "#/entities/GameResult" },
+      "description": "Completed game scores and XP rewards per user."
+    },
+    "/users/{uid}/learningProgress/{progressId}": {
+      "schema": { "$ref": "#/entities/LearningProgress" },
+      "description": "Academy, quiz, and English learning progress per user."
+    },
+    "/users/{uid}/achievements/{achievementId}": {
+      "schema": { "$ref": "#/entities/UserAchievement" },
+      "description": "Unlocked user achievement documents."
+    },
+    "/users/{uid}/favorites/{countryId}": {
+      "schema": { "$ref": "#/entities/UserFavorite" },
+      "description": "User favorite country bookmarks."
+    },
+    "/users/{uid}/dailyChallenges/{dateId}": {
+      "schema": { "$ref": "#/entities/DailyChallengeRecord" },
+      "description": "Daily challenge completions keyed by YYYY-MM-DD."
+    },
+    "/users/{uid}/mediaUploads/{uploadId}": {
+      "schema": { "$ref": "#/entities/MediaUpload" },
+      "description": "User uploaded image metadata pointing to Firebase Storage."
+    },
+    "/subscriptions/{uid}": {
+      "schema": { "$ref": "#/entities/SubscriptionRecord" },
+      "description": "PRO subscription entitlement records controlled strictly by trusted backend/Cloud Functions/admins."
+    },
+    "/promoRedemptions/{redemptionId}": {
+      "schema": { "$ref": "#/entities/PromoRedemption" },
+      "description": "Server-validated promo code redemption history readable by the owner or verified admins."
+    },
+    "/leaderboard/{uid}": {
+      "schema": { "$ref": "#/entities/LeaderboardEntry" },
+      "description": "Public PII-free leaderboard profiles."
+    },
+    "/publicCountries/{countryId}": {
+      "schema": { "$ref": "#/entities/PublicCountryLesson" },
+      "description": "Public educational country lessons managed by administrators."
+    },
+    "/quizzes/{quizId}": {
+      "schema": { "$ref": "#/entities/AdminQuiz" },
+      "description": "Public quizzes managed by administrators."
+    },
+    "/gamesConfig/{gameId}": {
+      "schema": { "$ref": "#/entities/GameConfig" },
+      "description": "Admin-configured game visibility and XP multiplier settings."
+    },
+    "/activityLogs/{logId}": {
+      "schema": { "$ref": "#/entities/ActivityLog" },
+      "description": "Platform activity audit events readable only by admins."
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminMarker" },
+      "description": "Verified administrator role documents."
+    },
+    "/test/connection": {
+      "schema": { "$ref": "#/entities/ConnectionCheck" },
+      "description": "Public connectivity ping path."
+    }
+  }
+}

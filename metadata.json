@@ -1,0 +1,6 @@
+{
+  "name": "Dunyo Geografiyasi",
+  "description": "Dunyo geografiyasi bo‘yicha davlatlar, poytaxtlar, okeanlar, tog‘lar va tabiat haqida qiziqarli, qisqa va tushunarli interaktiv qo‘llanma.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
